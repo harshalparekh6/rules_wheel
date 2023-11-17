@@ -41,32 +41,24 @@ def _generate_manifest(ctx, package_name):
 
 def _bdist_wheel_impl(ctx):
     # use the rule name in the work dir path in case multiple wheels are declared in the same BUILD file
-    work_dir = "{}/wheel".format(ctx.attr.name)
     build_file_dir = ctx.build_file_path.rstrip('/BUILD')
 
-    package_dir = ctx.actions.declare_directory(work_dir)
-    package_name = package_dir.dirname.split('/')[-1]
+    setup_py = _generate_setup_py(ctx)
+    manifest = _generate_manifest(ctx, ctx.attr.name)
+
+    package_dir_path = "{}/wheel".format(setup_py.dirname)
 
     setup_py_dest_dir = '/'.join([
-        package_dir.path,
+        package_dir_path,
         '/'.join(build_file_dir.split('/')[:-1]),
         ctx.attr.strip_src_prefix.strip('/')
     ])
     backtrack_path = '/'.join(['..' for i in setup_py_dest_dir.split('/') if i])
 
-    setup_py = _generate_setup_py(ctx)
-    manifest = _generate_manifest(ctx, package_name)
 
     source_list = ' '.join([src.path for src in ctx.files.srcs])
 
-    ctx.actions.run_shell(
-        mnemonic="CreateWorkDir",
-        outputs=[package_dir],
-        inputs=[],
-        command="mkdir -p {package_dir}".format(package_dir=package_dir.path)
-    )
-
-    command = "chmod 0775 {package_dir} " \
+    command = "mkdir -p {package_dir} && chmod 0775 {package_dir} " \
               + "&& rsync -R {source_list} {package_dir} " \
               + "&& cp {setup_py_path} {setup_py_dest_dir} " \
               + "&& cp {manifest_path} {setup_py_dest_dir} " \
@@ -76,14 +68,14 @@ def _bdist_wheel_impl(ctx):
     ctx.actions.run_shell(
         mnemonic="BuildWheel",
         outputs=[ctx.outputs.wheel],
-        inputs=[src for src in ctx.files.srcs] + [package_dir, setup_py, manifest],
+        inputs=[src for src in ctx.files.srcs] + [setup_py, manifest],
         command=command.format(
             source_list=source_list,
             setup_py_path=ctx.outputs.setup_py.path,
             manifest_path=ctx.outputs.manifest.path,
-            package_dir=package_dir.path,
+            package_dir=package_dir_path,
             setup_py_dest_dir=setup_py_dest_dir,
-            bdist_dir=package_dir.path + "/build",
+            bdist_dir=package_dir_path + "/build",
             dist_dir=backtrack_path + "/" + ctx.outputs.wheel.dirname,
         )
     )

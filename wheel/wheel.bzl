@@ -66,7 +66,7 @@ def _bdist_wheel_impl(ctx):
         command = "mkdir -p {package_dir}".format(package_dir = package_dir.path),
     )
 
-    command = "chmod 0777 {package_dir} " + \
+    command = "chmod -R 0777 {package_dir} " + \
               "&& rsync -R {source_list} {package_dir} " + \
               "&& cp {setup_py_path} {setup_py_dest_dir} " + \
               "&& cp {manifest_path} {setup_py_dest_dir} " + \
